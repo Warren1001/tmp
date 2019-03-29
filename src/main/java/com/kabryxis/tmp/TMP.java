@@ -2,6 +2,7 @@ package com.kabryxis.tmp;
 
 import com.kabryxis.kabutils.Images;
 import com.kabryxis.kabutils.concurrent.Threads;
+import com.kabryxis.kabutils.data.file.yaml.Config;
 import com.kabryxis.tmp.media.Episode;
 import com.kabryxis.tmp.media.MediaManager;
 import com.kabryxis.tmp.swing.*;
@@ -22,9 +23,9 @@ import uk.co.caprica.vlcj.runtime.x.LibXUtil;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyListener;
-import java.util.Arrays;
+import java.io.File;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 
 public class TMP {
 	
@@ -39,6 +40,7 @@ public class TMP {
 		new TMP();
 	}
 	
+	private final Config data;
 	private final MediaManager mediaManager;
 	private final UserManager userManager;
 	private final Canvas mediaPlayerCanvas;
@@ -58,8 +60,12 @@ public class TMP {
 	public TMP() {
 		mainFrame = new FrameBuilder("Tarrant's Media Player").layout(null).icon(Images.loadFromResource(getClass().getClassLoader(), "icon.png"))
 				.bounds(0, 0, 1920, 1080).backgroundColor(Color.DARK_GRAY).build();
-		MediaPlayerFactory mediaPlayerFactory = new MediaPlayerFactory(Arrays.asList("--no-plugins-cache", "--no-video-title-show", "--no-snapshot-preview"));
-		mediaPlayerFactory.setUserAgent("vlcj test player");
+		data = new Config(new File("data.yml"), true);
+		List<String> commandLineArgs = new ArrayList<>();
+		Collections.addAll(commandLineArgs, "--no-plugins-cache", "--no-video-title-show", "--no-snapshot-preview"/*, "--longhelp", "--advanced"*/);
+		commandLineArgs.addAll(data.getList("command-line", String.class, Collections.emptyList()));
+		MediaPlayerFactory mediaPlayerFactory = new MediaPlayerFactory(commandLineArgs);
+		//mediaPlayerFactory.setUserAgent("vlcj test player");
 		mediaPlayerCanvas = new Canvas();
 		mediaPlayerCanvas.setBackground(Color.DARK_GRAY);
 		mediaPlayerCanvas.setBounds(0, 0, 1920, 1080);
@@ -198,6 +204,7 @@ public class TMP {
 		mainFrame.addKeyListener(keyListener);
 		mediaPlayerCanvas.addKeyListener(keyListener);
 		mainPanel = new ComponentBuilder<>(new JPanel(null)).bounds(0, 0, 1920, 1080).backgroundColor(Color.DARK_GRAY.darker()).build();
+		Image dividerImage = Images.loadFromResource(getClass().getClassLoader(), "divider.png");
 		barMenu = new BarMenu(1920, 30, 0.5F, 2, 2, Color.DARK_GRAY.darker().darker());
 		mediaManager = new MediaManager(this);
 		userManager = new UserManager(this, barMenu);
@@ -205,17 +212,40 @@ public class TMP {
 				.mouseListener((BasicMouseListener)e -> System.exit(0)).build());
 		barMenu.addRight(new ComponentBuilder<>(new FadingImage(Images.loadFromResource(getClass().getClassLoader(), "userplus.png")))
 				.mouseListener((BasicMouseListener)e -> userManager.createAndSelectUser()).build());
-		barMenu.addRight(new JImage(Images.loadFromResource(getClass().getClassLoader(), "divider.png")));
+		barMenu.addRight(new JImage(dividerImage));
+		FadingImage detailsFadingImage = new FadingImage(Images.loadFromResource(getClass().getClassLoader(), "details.png"));
+		FadingImage blockFadingImage = new FadingImage(Images.loadFromResource(getClass().getClassLoader(), "block.png"));
+		barMenu.addLeft(new ComponentBuilder<>(detailsFadingImage).mouseListener((BasicMouseListener)e -> setDisplay(DisplayOption.DETAILS)).build());
+		barMenu.addLeft(new ComponentBuilder<>(blockFadingImage).mouseListener((BasicMouseListener)e -> setDisplay(DisplayOption.BLOCK)).build());
+		barMenu.addLeft(new JImage(dividerImage));
+		barMenu.addLeft(new ComponentBuilder<>(new FadingImage(Images.loadFromResource(getClass().getClassLoader(), "alphabetical.png")))
+				.mouseListener((BasicMouseListener)e -> setOrder(SortOption.ALPHABETICAL)).build());
+		barMenu.addLeft(new ComponentBuilder<>(new FadingImage(Images.loadFromResource(getClass().getClassLoader(), "lastseen.png")))
+				.mouseListener((BasicMouseListener)e -> setOrder(SortOption.LAST_SEEN)).build());
+		barMenu.addLeft(new JImage(dividerImage));
 		userManager.loadUsers();
 		barMenu.addTo(mainPanel);
+		DisplayOption displayOption = userManager.getSelectedUser().getDisplayOption();
+		switch(displayOption) {
+			case BLOCK:
+				blockFadingImage.setFaded(true);
+				break;
+			case DETAILS:
+				detailsFadingImage.setFaded(true);
+				break;
+		}
+		mediaManager.initialize(displayOption, userManager.getSelectedUser().getSortOption());
 		mainFrame.add(mediaPlayerCanvas);
-		mainPanel.add(mediaManager.getMainPanel());
+		mediaManager.getPanels().forEach(mainPanel::add);
 		mainFrame.add(mainPanel);
 		mainFrame.setExtendedState(mainFrame.getExtendedState() | JFrame.MAXIMIZED_BOTH);
 		currentlyVisiblePanelNode = new Node<>(mediaManager.getMainPanel());
-		mediaManager.loadUI();
 		mainFrame.setVisible(true);
 		//mediaPlayer.toggleFullScreen();
+	}
+	
+	public Config getData() {
+		return data;
 	}
 	
 	public UserManager getUserManager() {
@@ -249,7 +279,8 @@ public class TMP {
 	}
 	
 	public void exitEpisode() {
-		mediaManager.loadUI();
+		DisplayOption displayOption = userManager.getSelectedUser().getDisplayOption();
+		//mediaManager.loadUI(displayOption, displayOption);
 		mediaPlayer.setFullScreen(false);
 		mediaPlayer.stop();
 		mediaPlayerCanvas.setVisible(false);
@@ -274,7 +305,8 @@ public class TMP {
 	
 	public void setPreviousCurrentlyVisibleMainPanel() {
 		if(currentlyVisiblePanelNode.hasPrevious()) {
-			mediaManager.loadUI();
+			DisplayOption displayOption = userManager.getSelectedUser().getDisplayOption();
+			//mediaManager.loadUI(displayOption, displayOption);
 			currentlyVisiblePanelNode.get().setVisible(false);
 			currentlyVisiblePanelNode = currentlyVisiblePanelNode.getPrevious();
 			currentlyVisiblePanelNode.get().setVisible(true);
@@ -324,6 +356,22 @@ public class TMP {
 			if(spuTrack.id() == spu) return i;
 		}
 		throw new IllegalStateException(String.format("Could not find subtitle track with id '%s' from:\n\t%s", spu, spuDescriptions));
+	}
+	
+	public void setDisplay(DisplayOption displayOption) {
+		DisplayOption currentDisplayOption = userManager.getSelectedUser().getDisplayOption();
+		if(currentDisplayOption != displayOption) {
+			userManager.getSelectedUser().setDisplayOption(displayOption);
+			mediaManager.setDisplay(displayOption);
+		}
+	}
+	
+	public void setOrder(SortOption sortOption) {
+		SortOption currentSortOption = userManager.getSelectedUser().getSortOption();
+		if(currentSortOption != sortOption) {
+			userManager.getSelectedUser().setSortOption(sortOption);
+			mediaManager.setOrder(sortOption);
+		}
 	}
 	
 }

@@ -4,7 +4,8 @@ import com.kabryxis.kabutils.Images;
 import com.kabryxis.kabutils.data.file.Files;
 import com.kabryxis.kabutils.data.file.yaml.Config;
 import com.kabryxis.kabutils.data.file.yaml.ConfigSection;
-import com.kabryxis.tmp.swing.NewShowTile;
+import com.kabryxis.tmp.swing.BlockTile;
+import com.kabryxis.tmp.swing.DetailsTile;
 import com.kabryxis.tmp.user.ShowTracker;
 import com.kabryxis.tmp.user.User;
 
@@ -25,7 +26,8 @@ public class Show implements Media {
 	protected final Config data;
 	protected final String name;
 	protected final Season[] seasons;
-	protected NewShowTile tilePanel;
+	protected BlockTile blockTilePanel;
+	protected DetailsTile detailsTilePanel;
 	protected final JPanel pagePanel;
 	
 	private boolean hasUILoaded = false;
@@ -101,9 +103,15 @@ public class Show implements Media {
 	}
 	
 	@Override
-	public JPanel getTilePanel() {
+	public JPanel getBlockTilePanel() {
 		if(!hasUILoaded) loadUI();
-		return tilePanel;
+		return blockTilePanel;
+	}
+	
+	@Override
+	public JPanel getDetailsTilePanel() {
+		if(!hasUILoaded) loadUI();
+		return detailsTilePanel;
 	}
 	
 	@Override
@@ -115,7 +123,9 @@ public class Show implements Media {
 		hasUILoaded = true;
 		String imagePath = data.get("image");
 		try {
-			tilePanel = new NewShowTile(this, imagePath == null ? ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png"))) :
+			blockTilePanel = new BlockTile(this, imagePath == null ? ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png"))) :
+					ImageIO.read(new File(directory, imagePath)));
+			detailsTilePanel = new DetailsTile(this, imagePath == null ? ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png"))) :
 					ImageIO.read(new File(directory, imagePath)));
 		} catch(IOException e) {
 			e.printStackTrace();

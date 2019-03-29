@@ -28,7 +28,6 @@ public class UserManager {
 	private final TMP tmp;
 	private final BarMenu barMenu;
 	private final File userDirectory;
-	private final Config data;
 	private final Image baseUserImage;
 	
 	private User selectedUser;
@@ -38,7 +37,6 @@ public class UserManager {
 		this.barMenu = barMenu;
 		userDirectory = new File("users");
 		userDirectory.mkdir();
-		data = new Config(new File("data.yml"), true);
 		baseUserImage = Images.loadFromResource(getClass().getClassLoader(), "user.png");
 		Config.registerSerializer(new Serializer() {
 			
@@ -94,7 +92,7 @@ public class UserManager {
 			users.put(name, user);
 			barMenu.addRight(fadingImage);
 		});
-		setSelectedUser(getUser(data.get("selected-user")));
+		setSelectedUser(getUser(tmp.getData().get("selected-user")));
 	}
 	
 	public User createAndSelectUser() {
@@ -122,8 +120,8 @@ public class UserManager {
 		selectedUser = user;
 		user.setAsSelected();
 		selectedUserActions.forEach(action -> action.accept(user));
-		data.put("selected-user", user.getName());
-		data.save();
+		tmp.getData().put("selected-user", user.getName());
+		tmp.getData().save();
 	}
 	
 	public User getSelectedUser() {

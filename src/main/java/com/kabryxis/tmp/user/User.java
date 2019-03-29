@@ -1,6 +1,8 @@
 package com.kabryxis.tmp.user;
 
 import com.kabryxis.kabutils.data.file.yaml.Config;
+import com.kabryxis.tmp.DisplayOption;
+import com.kabryxis.tmp.SortOption;
 import com.kabryxis.tmp.TMP;
 import com.kabryxis.tmp.media.Show;
 import com.kabryxis.tmp.swing.FadingImage;
@@ -66,6 +68,24 @@ public class User {
 	
 	public ShowTracker getShowTracker(Show show) {
 		return showTrackers.get(show);
+	}
+	
+	public void setDisplayOption(DisplayOption displayOption) {
+		data.put("display", displayOption.name());
+		data.save();
+	}
+	
+	public DisplayOption getDisplayOption() {
+		return data.getEnum("display", DisplayOption.class, DisplayOption.BLOCK);
+	}
+	
+	public void setSortOption(SortOption sortOption) {
+		data.put("sort", sortOption.getName());
+		data.save();
+	}
+	
+	public SortOption getSortOption() {
+		return SortOption.getByName(data.get("sort", "LAST_SEEN"));
 	}
 	
 }

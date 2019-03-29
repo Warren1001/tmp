@@ -5,7 +5,12 @@ import javax.swing.*;
 public class Movie implements Media {
 	
 	@Override
-	public JPanel getTilePanel() {
+	public JPanel getBlockTilePanel() {
+		return null;
+	}
+	
+	@Override
+	public JPanel getDetailsTilePanel() {
 		return null;
 	}
 	

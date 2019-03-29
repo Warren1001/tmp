@@ -4,7 +4,9 @@ import javax.swing.*;
 
 public interface Media {
 	
-	JPanel getTilePanel();
+	JPanel getBlockTilePanel();
+	
+	JPanel getDetailsTilePanel();
 	
 	JPanel getPagePanel();
 	

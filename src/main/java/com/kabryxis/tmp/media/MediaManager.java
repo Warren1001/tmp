@@ -1,17 +1,14 @@
 package com.kabryxis.tmp.media;
 
+import com.kabryxis.kabutils.data.Sets;
 import com.kabryxis.kabutils.data.file.yaml.Config;
+import com.kabryxis.tmp.DisplayOption;
 import com.kabryxis.tmp.TMP;
-import com.kabryxis.tmp.user.ShowTracker;
-import com.kabryxis.tmp.user.User;
+import com.kabryxis.tmp.swing.TilePanel;
 
 import javax.swing.*;
-import java.awt.*;
 import java.io.File;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class MediaManager {
 	
@@ -19,7 +16,10 @@ public class MediaManager {
 	private final Map<String, Show> shows = new HashMap<>();
 	private final Map<String, Movie> movies = new HashMap<>();
 	private final TMP tmp;
-	private final JPanel mainPanel;
+	private final TilePanel blockPanel, detailsPanel;
+	
+	private TilePanel currentTilePanel;
+	private Comparator<Show> currentOrder;
 	
 	public MediaManager(TMP tmp) {
 		this.tmp = tmp;
@@ -28,7 +28,8 @@ public class MediaManager {
 			Config mediaData = new Config(new File(mediaFolder, "info.yml"), true);
 			Show show = new Show(this, mediaFolder, mediaData);
 			shows.put(show.getName(), show);
-			/*String type = mediaData.get("type", String.class);
+			/*
+			String type = mediaData.get("type", String.class);
 			if(type.equalsIgnoreCase("anime") || type.equalsIgnoreCase("show")) {
 			
 			}
@@ -38,32 +39,50 @@ public class MediaManager {
 			}
 			else {
 				// TODO error
-			}*/
+			}
+			*/
 		}
-		mainPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 3, 3));
-		mainPanel.setBounds(0, 30, 1920, 1080 - 30);
-		mainPanel.setBackground(Color.DARK_GRAY.darker());
+		blockPanel = new TilePanel(this, Show::getBlockTilePanel);
+		detailsPanel = new TilePanel(this, Show::getDetailsTilePanel);
 	}
 	
 	public TMP getTMP() {
 		return tmp;
 	}
 	
-	public JPanel getMainPanel() {
-		return mainPanel;
+	public void initialize(DisplayOption displayOption, Comparator<Show> sortOption) {
+		currentTilePanel = displayOption == DisplayOption.BLOCK ? blockPanel : detailsPanel;
+		setOrder(sortOption);
+		currentTilePanel.setVisible(true);
 	}
 	
-	public void loadUI() {
-		Collection<Show> showsCollection = shows.values();
-		showsCollection.forEach(show -> mainPanel.remove(show.getTilePanel()));
-		showsCollection.stream().sorted((show1, show2) -> {
-			User selectedUser = tmp.getUserManager().getSelectedUser();
-			ShowTracker showTracker1 = selectedUser.getShowTracker(show1);
-			ShowTracker showTracker2 = selectedUser.getShowTracker(show2);
-			long lastSeen1 = showTracker1.getLastWatched();
-			long lastSeen2 = showTracker2.getLastWatched();
-			return lastSeen1 >= lastSeen2 ? (lastSeen1 == lastSeen2 ? String.CASE_INSENSITIVE_ORDER.compare(show1.getFriendlyName(), show2.getFriendlyName()) : -1) : 1;
-		}).forEachOrdered(show -> mainPanel.add(show.getTilePanel()));
+	public void setDisplay(DisplayOption displayOption) {
+		//boolean firstLoad = false;
+		currentTilePanel.setVisible(false);
+		//else firstLoad = true;
+		currentTilePanel = displayOption == DisplayOption.BLOCK ? blockPanel : detailsPanel;
+		sort();
+		currentTilePanel.setVisible(true);
+		//if(firstLoad) sort();
+	}
+	
+	public void setOrder(Comparator<Show> order) {
+		if(currentOrder != order) {
+			currentOrder = order;
+			sort();
+		}
+	}
+	
+	public Set<JPanel> getPanels() {
+		return Sets.newHashSet(blockPanel, detailsPanel);
+	}
+	
+	public TilePanel getMainPanel() {
+		return currentTilePanel;
+	}
+	
+	public void sort() {
+		currentTilePanel.sort(currentOrder);
 	}
 	
 	public Show getShow(String name) {
