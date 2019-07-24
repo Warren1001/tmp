@@ -128,6 +128,10 @@ public class UserManager {
 		return selectedUser;
 	}
 	
+	public Collection<User> getUsers() {
+		return users.values();
+	}
+	
 	public void registerSelectedUserListener(Consumer<User> action) {
 		selectedUserActions.add(action);
 	}

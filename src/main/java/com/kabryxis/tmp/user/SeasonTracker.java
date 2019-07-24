@@ -4,6 +4,8 @@ import com.kabryxis.kabutils.data.file.yaml.ConfigSection;
 import com.kabryxis.tmp.media.Episode;
 import com.kabryxis.tmp.media.Season;
 
+import java.util.stream.Stream;
+
 public class SeasonTracker {
 	
 	private final User user;
@@ -17,11 +19,7 @@ public class SeasonTracker {
 		this.showTracker = showTracker;
 		this.season = season;
 		section = user.getData().computeSectionIfAbsent(season.getShow().getName() + ".seasons." + season.getNumber());
-		Episode[] episodes = season.getMainEpisodes();
-		episodeTrackers = new EpisodeTracker[episodes.length];
-		for(int i = 0; i < episodes.length; i++) {
-			episodeTrackers[i] = new EpisodeTracker(user, this, episodes[i]);
-		}
+		episodeTrackers = Stream.of(season.getEpisodes()).map(episode -> new EpisodeTracker(user, this, episode)).toArray(EpisodeTracker[]::new);
 	}
 	
 	public ShowTracker getShowTracker() {

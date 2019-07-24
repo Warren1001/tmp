@@ -82,10 +82,17 @@ public class BasicMediaPlayerEventListener implements MediaPlayerEventListener {
 	public void audioDeviceChanged(MediaPlayer player, String s) {}
 	
 	@Override
-	public void chapterChanged(MediaPlayer player, int i) {}
+	public void chapterChanged(MediaPlayer player, int i) {
+		System.out.println("chapterChanged: " + i);
+	}
 	
 	@Override
 	public void error(MediaPlayer player) {}
+	
+	@Override
+	public void mediaPlayerReady(MediaPlayer player) {
+		System.out.println("mediaPlayerReady");
+	}
 	
 	@Override
 	public void mediaMetaChanged(MediaPlayer player, int i) {}
@@ -98,6 +105,11 @@ public class BasicMediaPlayerEventListener implements MediaPlayerEventListener {
 	
 	@Override
 	public void mediaParsedChanged(MediaPlayer player, int i) {}
+	
+	@Override
+	public void mediaParsedStatus(MediaPlayer player, int i) {
+		System.out.println("mediaParsedStatus:" + i);
+	}
 	
 	@Override
 	public void mediaFreed(MediaPlayer player) {}

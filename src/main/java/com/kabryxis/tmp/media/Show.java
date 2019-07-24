@@ -4,20 +4,17 @@ import com.kabryxis.kabutils.Images;
 import com.kabryxis.kabutils.data.file.Files;
 import com.kabryxis.kabutils.data.file.yaml.Config;
 import com.kabryxis.kabutils.data.file.yaml.ConfigSection;
-import com.kabryxis.tmp.swing.BlockTile;
-import com.kabryxis.tmp.swing.DetailsTile;
+import com.kabryxis.tmp.swing.*;
 import com.kabryxis.tmp.user.ShowTracker;
 import com.kabryxis.tmp.user.User;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.io.File;
-import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+import java.util.Random;
 
 public class Show implements Media {
 	
@@ -25,9 +22,11 @@ public class Show implements Media {
 	protected final File directory;
 	protected final Config data;
 	protected final String name;
+	protected final long added;
 	protected final Season[] seasons;
 	protected BlockTile blockTilePanel;
 	protected DetailsTile detailsTilePanel;
+	protected Image showImage;
 	protected final JPanel pagePanel;
 	
 	private boolean hasUILoaded = false;
@@ -37,6 +36,8 @@ public class Show implements Media {
 		this.directory = directory;
 		this.data = data;
 		name = directory.getName().replace(File.separator, "");
+		added = data.computeLongIfAbsent("added", System.currentTimeMillis());
+		data.save();
 		ConfigSection section = data.get("seasons");
 		File[] seasonsFolders = Files.getDirectories(directory);
 		seasons = new Season[seasonsFolders.length];
@@ -52,10 +53,7 @@ public class Show implements Media {
 			}
 			seasons[i] = new Season(this, seasonNumber, seasonFolder);
 		}
-		pagePanel = new JPanel();
-		pagePanel.setLayout(null);
-		pagePanel.setBounds(0, 0, 1560 - 40, 900);
-		pagePanel.setBackground(Color.DARK_GRAY);
+		pagePanel = new ComponentBuilder<>(new JPanel(null)).bounds(0, 30, 1920, 1080 - 30).visible(false).build();
 	}
 	
 	public MediaManager getMediaManager() {
@@ -86,6 +84,10 @@ public class Show implements Media {
 		return name;
 	}
 	
+	public long getAdded() {
+		return added;
+	}
+	
 	public String getFriendlyName() {
 		return data.get("name");
 	}
@@ -95,11 +97,24 @@ public class Show implements Media {
 	}
 	
 	public List<String> getGenres() {
-		return data.getList("genres", String.class);
+		return data.getList("genres", String.class, Collections.emptyList());
 	}
 	
-	public int getRating(User user) {
-		return 0; // TODO
+	private boolean test = true;
+	private double testRating = (10 + (new Random().nextInt(30) + 1)) / 4.0;
+	
+	public double getAverageRating() {
+		if(test) return testRating;
+		Collection<User> users = manager.getTMP().getUserManager().getUsers();
+		double totalRating = 0.0;
+		int totalRaters = 0;
+		for(User user : users) {
+			double rating = user.getShowTracker(this).getRating();
+			if(rating == 0.0) continue;
+			totalRating += rating;
+			totalRaters++;
+		}
+		return totalRaters == 0 ? 0.0 : totalRating / totalRaters;
 	}
 	
 	@Override
@@ -119,90 +134,35 @@ public class Show implements Media {
 		return pagePanel;
 	}
 	
+	public Image getImage() {
+		return showImage;
+	}
+	
 	private void loadUI() {
 		hasUILoaded = true;
-		String imagePath = data.get("image");
-		try {
-			blockTilePanel = new BlockTile(this, imagePath == null ? ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png"))) :
-					ImageIO.read(new File(directory, imagePath)));
-			detailsTilePanel = new DetailsTile(this, imagePath == null ? ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png"))) :
-					ImageIO.read(new File(directory, imagePath)));
-		} catch(IOException e) {
-			e.printStackTrace();
-		}
-		ImageIcon pageIcon;
-		try {
-			pageIcon = new ImageIcon(Images.reduce(imagePath == null ?
-					ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png"))) :
-					ImageIO.read(new File(directory, imagePath)), 450, 900));
-		} catch(IOException e) {
-			throw new RuntimeException(e);
-		}
-		JLabel pageImageLabel = new JLabel(pageIcon);
-		pageImageLabel.setSize(pageIcon.getImage().getWidth(null), pageIcon.getImage().getHeight(null));
-		JPanel pageTitlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		pageTitlePanel.setBounds(470, 0, 1560 - 470, 125);
-		pageTitlePanel.setBackground(Color.DARK_GRAY);
-		String titleString = getFriendlyName();
-		//if(this instanceof Anime && ((Anime)this).hasEnglishName()) titleString += " - (" + ((Anime)this).getEnglishName() + ")";
-		JTextArea pageTitle = new JTextArea();
-		pageTitle.setText(titleString);
-		pageTitle.setFont(new Font("Segoe Print", Font.BOLD, 50));
-		pageTitle.setBackground(Color.DARK_GRAY);
-		pageTitle.setForeground(Color.WHITE);
-		pageTitle.setEditable(false);
-		pageTitle.setFocusable(false);
-		JTextArea pageDescription = new JTextArea();
-		pageDescription.setText(getDescription());
-		pageDescription.setFont(new Font("Times New Roman", Font.PLAIN, 24));
-		pageDescription.setWrapStyleWord(true);
-		pageDescription.setLineWrap(true);
-		pageDescription.setEditable(false);
-		pageDescription.setFocusable(false);
-		pageDescription.setBackground(Color.DARK_GRAY);
-		pageDescription.setForeground(Color.WHITE);
-		pageDescription.setBounds(470, 145, 1560 - 470, 150);
-		JPanel seasonsPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 15, 5));
-		seasonsPanel.setBackground(Color.DARK_GRAY);
-		seasonsPanel.setBounds(470, 305, 1560 - 470, 900 - 305);
+		File file = new File(directory, data.get("image", "image.png"));
+		if(file.exists()) showImage = Images.read(file);
+		if(showImage == null) showImage = Images.loadFromResource(getClass().getClassLoader(), "default.png");
+		blockTilePanel = new BlockTile(this, showImage);
+		detailsTilePanel = new DetailsTile(this, showImage);
+		JPanel leftPanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15))).bounds(0, 0, 450, 1080 - 30).build();
+		JPanel rightPanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15))).bounds(450, 0, 1920 - 450, 1080 - 30).build();
+		leftPanel.add(new JImage(Images.resize(showImage, 450, 900)));
+		JPanel pageTitlePanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0))).preferredSize(1920 - 450, 125).build();
+		pageTitlePanel.add(new TextAreaBuilder(getFriendlyName()).font(new Font("Segoe Print", Font.BOLD, 50)).wrap(false).build());
+		rightPanel.add(pageTitlePanel);
+		rightPanel.add(new TextAreaBuilder(getDescription()).font(new Font("Times New Roman", Font.PLAIN, 24)).preferredSize(1920 - 450, 150).build());
+		JPanel seasonsPanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.LEADING, 15, 5))).preferredSize(1920 - 450, 600).build();
 		for(Season season : seasons) {
 			season.loadUI();
-			JTextArea seasonText = new JTextArea();
-			seasonText.setText("Season " + season.getNumber());
-			seasonText.setEditable(false);
-			seasonText.setFocusable(false);
-			seasonText.setBackground(Color.DARK_GRAY);
-			seasonText.setForeground(Color.WHITE);
-			seasonText.setSize(100, 30);
-			seasonText.addMouseListener(new MouseListener() {
-				
-				@Override
-				public void mouseClicked(MouseEvent event) {
-					manager.getTMP().playEpisode(manager.getTMP().getUserManager().getSelectedUser().getShowTracker(Show.this).getSeasonTracker(season.getNumber()).getLastEpisode());
-					//manager.getMediaPlayer().setCurrentlyVisibleMainPanel(season.getPagePanel());
-				}
-				
-				@Override
-				public void mousePressed(MouseEvent e) {}
-				
-				@Override
-				public void mouseReleased(MouseEvent e) {}
-				
-				@Override
-				public void mouseEntered(MouseEvent e) {}
-				
-				@Override
-				public void mouseExited(MouseEvent e) {}
-				
-			});
-			seasonsPanel.add(seasonText);
+			seasonsPanel.add(new TextAreaBuilder(String.format("Season %s", season.getNumber())).preferredSize(100, 30).mouseListener((BasicMouseListener)e -> {
+				//manager.getTMP().playEpisode(manager.getTMP().getUserManager().getSelectedUser().getShowTracker(Show.this).getSeasonTracker(season.getNumber()).getLastEpisode());
+				manager.getTMP().setCurrentlyVisibleMainPanel(season.getPagePanel());
+			}).build());
 		}
-		pagePanel.add(seasonsPanel);
-		pagePanel.add(pageImageLabel);
-		pageTitlePanel.add(pageTitle);
-		pagePanel.add(pageTitlePanel);
-		pagePanel.add(pageDescription);
-		pagePanel.setVisible(false);
+		rightPanel.add(seasonsPanel);
+		pagePanel.add(leftPanel);
+		pagePanel.add(rightPanel);
 		manager.getTMP().getMainPanel().add(pagePanel);
 	}
 	

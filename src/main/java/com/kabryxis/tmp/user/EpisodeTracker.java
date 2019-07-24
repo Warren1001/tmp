@@ -11,14 +11,12 @@ public class EpisodeTracker {
 	private final Episode episode;
 	private final ConfigSection section;
 	
-	private long introStartTime = -1L;
-	
 	public EpisodeTracker(User user, SeasonTracker seasonTracker, Episode episode) {
 		this.user = user;
 		this.seasonTracker = seasonTracker;
 		this.episode = episode;
 		Season season = episode.getSeason();
-		section = user.getData().computeSectionIfAbsent(season.getShow().getName() + ".seasons." + season.getNumber() + ".main." + episode.getNumber());
+		section = user.getData().computeSectionIfAbsent(season.getShow().getName() + ".seasons." + season.getNumber() + "." + episode.getNumber());
 	}
 	
 	public SeasonTracker getSeasonTracker() {
@@ -41,20 +39,6 @@ public class EpisodeTracker {
 	
 	public long getLastSeenTime() {
 		return section.getLong("last-seen-time", 0L);
-	}
-	
-	public void setIntroStartTime(long introStartTime) {
-		this.introStartTime = introStartTime;
-		episode.setIntroStartTime(introStartTime);
-	}
-	
-	public boolean isIntroStartTimeSet() {
-		return introStartTime != -1L;
-	}
-	
-	public void setIntroLength(long introEndTime) {
-		episode.getSeason().setIntroLength(introEndTime - introStartTime);
-		introStartTime = -1L;
 	}
 	
 }

@@ -1,6 +1,7 @@
 package com.kabryxis.tmp.swing;
 
 import com.kabryxis.kabutils.data.Arrays;
+import com.kabryxis.tmp.TMP;
 
 import java.awt.*;
 import java.awt.event.KeyListener;
@@ -12,6 +13,7 @@ public class ComponentBuilder<T extends Component> {
 	
 	public ComponentBuilder(T component) {
 		this.component = component;
+		bgColor(TMP.DEFAULT_BG_COLOR);
 	}
 	
 	public ComponentBuilder<T> bounds(int x, int y, int width, int height) {
@@ -24,22 +26,32 @@ public class ComponentBuilder<T extends Component> {
 		return this;
 	}
 	
-	public ComponentBuilder<T> location(int x, int y) {
+	public ComponentBuilder<T> preferredSize(int width, int height) {
+		component.setPreferredSize(new Dimension(width, height));
+		return this;
+	}
+	
+	public ComponentBuilder<T> minSize(int width, int height) {
+		component.setMinimumSize(new Dimension(width, height));
+		return this;
+	}
+	
+	public ComponentBuilder<T> loc(int x, int y) {
 		component.setLocation(x, y);
 		return this;
 	}
 	
-	public ComponentBuilder<T> location(Point loc) {
+	public ComponentBuilder<T> loc(Point loc) {
 		component.setLocation(loc);
 		return this;
 	}
 	
-	public ComponentBuilder<T> foregroundColor(Color foregroundColor) {
+	public ComponentBuilder<T> fgColor(Color foregroundColor) {
 		component.setForeground(foregroundColor);
 		return this;
 	}
 	
-	public ComponentBuilder<T> backgroundColor(Color backgroundColor) {
+	public ComponentBuilder<T> bgColor(Color backgroundColor) {
 		component.setBackground(backgroundColor);
 		return this;
 	}

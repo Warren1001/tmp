@@ -1,6 +1,6 @@
 package com.kabryxis.tmp.swing;
 
-import com.kabryxis.kabutils.data.NumberConversions;
+import com.kabryxis.kabutils.data.Maths;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,7 +17,7 @@ public class BarMenu {
 		left.setBackground(backgroundColor);
 		right.setBackground(backgroundColor);
 		this.height = height;
-		int lwidth = NumberConversions.floor(width * lp);
+		int lwidth = Maths.floor(width * lp);
 		left.setBounds(0, 0, lwidth, height);
 		right.setBounds(lwidth, 0, width - lwidth, height);
 	}

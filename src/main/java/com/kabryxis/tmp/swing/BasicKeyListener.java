@@ -7,7 +7,7 @@ import java.awt.event.KeyListener;
 public interface BasicKeyListener extends KeyListener {
 	
 	@Override
-	default void keyTyped(KeyEvent e) {}
+	default void keyPressed(KeyEvent e) {}
 	
 	@Override
 	default void keyReleased(KeyEvent e) {}

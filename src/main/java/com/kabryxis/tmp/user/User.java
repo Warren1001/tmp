@@ -10,8 +10,11 @@ import com.kabryxis.tmp.swing.FadingImage;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class User {
 	
@@ -20,6 +23,7 @@ public class User {
 	private final Config data;
 	private final FadingImage image;
 	private final Map<Show, ShowTracker> showTrackers = new HashMap<>();
+	private final List<SortOption> sortOptionOrder;
 	
 	public User(TMP tmp, Config data, FadingImage image) {
 		this.tmp = tmp;
@@ -30,6 +34,9 @@ public class User {
 		for(Show show : tmp.getMediaManager().getShows()) {
 			showTrackers.put(show, new ShowTracker(this, show));
 		}
+		List<String> list = data.getList("sort_option_order", String.class);
+		sortOptionOrder = list == null || list.isEmpty() ? Collections.singletonList(SortOption.ALPHABETICAL) : list.stream().map(SortOption::getByName)
+				.filter(sortOption -> sortOption != SortOption.USER_ORDER).collect(Collectors.toList());
 	}
 	
 	public User(TMP tmp, String name, Color color, FadingImage image) {
@@ -42,6 +49,8 @@ public class User {
 		for(Show show : tmp.getMediaManager().getShows()) {
 			showTrackers.put(show, new ShowTracker(this, show));
 		}
+		List<String> list = data.getList("sort_option_order", String.class);
+		sortOptionOrder = list == null || list.isEmpty() ? Collections.singletonList(SortOption.ALPHABETICAL) : list.stream().map(SortOption::getByName).collect(Collectors.toList());
 	}
 	
 	public String getName() {
@@ -85,7 +94,11 @@ public class User {
 	}
 	
 	public SortOption getSortOption() {
-		return SortOption.getByName(data.get("sort", "LAST_SEEN"));
+		return SortOption.getByName(data.get("sort", "ALPHABETICAL"));
+	}
+	
+	public List<SortOption> getSortOptionOrder() {
+		return sortOptionOrder;
 	}
 	
 }

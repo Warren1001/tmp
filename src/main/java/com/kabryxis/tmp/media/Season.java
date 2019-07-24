@@ -1,6 +1,7 @@
 package com.kabryxis.tmp.media;
 
 import com.kabryxis.kabutils.Images;
+import com.kabryxis.kabutils.data.Maths;
 import com.kabryxis.kabutils.data.file.Files;
 import com.kabryxis.kabutils.data.file.yaml.ConfigSection;
 import com.kabryxis.tmp.swing.BasicMouseListener;
@@ -8,97 +9,44 @@ import com.kabryxis.tmp.swing.ComponentBuilder;
 import com.kabryxis.tmp.swing.JImage;
 import com.kabryxis.tmp.swing.TextAreaBuilder;
 import com.kabryxis.tmp.user.SeasonTracker;
+import uk.co.caprica.vlcj.player.MediaPlayer;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
-import java.io.IOException;
-import java.util.*;
-import java.util.List;
 
 public class Season {
+	
+	private final long[] definedSkipDurations = new long[10];
 	
 	private final Show show;
 	private final int number;
 	private final File directory;
-	private final Episode[] mainEpisodes;
-	private final Episode[] extraEpisodes;
+	private final Episode[] episodes;
 	private final JPanel pagePanel;
-	private final Set<long[]> timestampSkipSegments;
-	private final int[] chapterSkipSegments;
 	
-	private ConfigSection mainSection, extraSection;
+	private ConfigSection section;
 	
 	public Season(Show show, int number, ConfigSection section) {
 		this.show = show;
 		this.number = number;
 		directory = new File(show.getDirectory(), String.valueOf(number));
-		mainSection = section.get("main");
-		extraSection = section.get("extra");
-		Set<long[]> timestampSkipSegments = null;
-		int[] chapterSkipSegments = null;
-		if(mainSection != null) {
-			List<String> list = mainSection.getList("skip", String.class);
-			if(list != null && !list.isEmpty()) {
-				Set<long[]> timestampsList = new HashSet<>();
-				List<Integer> chapterList = new ArrayList<>();
-				for(String string : list) {
-					String[] args0 = string.split(":", 2);
-					String key = args0[0];
-					String rest = args0[1];
-					if(key.equalsIgnoreCase("c")) chapterList.add(Integer.parseInt(rest));
-					else if(key.equalsIgnoreCase("t")) {
-						if(rest.contains(",")) {
-							String[] args1 = rest.split(",");
-							long[] timestampArray = new long[2];
-							for(String arg : args1) {
-								String[] args2 = arg.split(":");
-								String tKey = args2[0];
-								long value = Long.parseLong(args2[1]);
-								if(tKey.equalsIgnoreCase("s")) timestampArray[0] = value;
-								else if(tKey.equalsIgnoreCase("e")) timestampArray[1] = value;
-							}
-							timestampsList.add(timestampArray);
-						}
-						else {
-							long[] timestampArray = new long[2];
-							String[] args2 = rest.split(":");
-							String tKey = args2[0];
-							long value = Long.parseLong(args2[1]);
-							if(tKey.equalsIgnoreCase("s")) timestampArray[0] = value;
-							else if(tKey.equalsIgnoreCase("e")) timestampArray[1] = value;
-							timestampsList.add(timestampArray);
-						}
-					}
-				}
-				timestampSkipSegments = timestampsList;
-				chapterSkipSegments = new int[chapterList.size()];
-				for(int i = 0; i < chapterList.size(); i++) {
-					chapterSkipSegments[i] = chapterList.get(i);
-				}
-			}
+		this.section = section;
+		if(section != null) {
+			ConfigSection skipSection = section.get("skip");
+			if(skipSection != null) skipSection.forEach((key, value) -> definedSkipDurations[Integer.parseInt(key)] = Maths.toLong(value));
 		}
-		this.timestampSkipSegments = timestampSkipSegments;
-		this.chapterSkipSegments = chapterSkipSegments;
-		mainEpisodes = populateEpisodes(directory, mainSection);
-		File extrasDirectory = new File(directory, "extras");
-		extraEpisodes = extrasDirectory.exists() ? populateEpisodes(extrasDirectory, extraSection) : null;
-		pagePanel = new ComponentBuilder<>(new JPanel(null)).bounds(0, 0, 1560 - 40, 900).backgroundColor(Color.DARK_GRAY).build();
+		episodes = populateEpisodes(directory, section);
+		pagePanel = new ComponentBuilder<>(new JPanel(null)).bounds(0, 30, 1920, 1080 - 30).visible(false).build();
 	}
 	
 	public Season(Show show, int number, File directory) {
 		this.show = show;
 		this.number = number;
 		this.directory = directory;
-		mainEpisodes = populateEpisodes(directory, null);
-		File extrasDirectory = new File(directory, "extras");
-		extraEpisodes = extrasDirectory.exists() ? populateEpisodes(extrasDirectory, null) : null;
-		pagePanel = new ComponentBuilder<>(new JPanel(null)).bounds(0, 0, 1560 - 40, 900).backgroundColor(Color.DARK_GRAY).build();
-		timestampSkipSegments = null;
-		chapterSkipSegments = null;
-		mainSection = null;
-		extraSection = null;
+		episodes = populateEpisodes(directory, null);
+		pagePanel = new ComponentBuilder<>(new JPanel(null)).bounds(0, 30, 1920, 1080 - 30).visible(false).build();
+		section = null;
 	}
 	
 	public Show getShow() {
@@ -113,41 +61,28 @@ public class Season {
 		return directory;
 	}
 	
-	public Episode[] getMainEpisodes() {
-		return mainEpisodes;
-	}
-	
-	public int getMainEpisodesAmount() {
-		return mainEpisodes.length;
+	public Episode[] getEpisodes() {
+		return episodes;
 	}
 	
 	public Episode getEpisode(int number) {
-		return mainEpisodes[number - 1];
-	}
-	
-	public int getExtraEpisodes() {
-		return extraEpisodes == null ? 0 : extraEpisodes.length;
-	}
-	
-	public Episode getExtraEpisode(int number) {
-		return extraEpisodes[number - 1];
+		return episodes[number - 1];
 	}
 	
 	public JPanel getPagePanel() {
 		return pagePanel;
 	}
 	
-	public Set<long[]> getTimestampSkipSegments() {
-		return timestampSkipSegments;
-	}
-	
-	public int[] getChapterSkipSegments() {
-		return chapterSkipSegments;
+	public long getSkipDuration(int id) {
+		return definedSkipDurations[id];
 	}
 	
 	private Episode[] populateEpisodes(File directory, ConfigSection section) {
 		File[] files = Files.getFilesWithEndings(directory, Episode.VALID_EXTENSIONS);
 		Episode[] episodes = new Episode[files.length];
+		//com.kabryxis.kabutils.data.Arrays.forEach(files, file -> System.out.println("BEFORE: " + file.getName()));
+		//Arrays.sort(files, (f1, f2) -> String.CASE_INSENSITIVE_ORDER.compare(f1.getName(), f2.getName()));
+		//com.kabryxis.kabutils.data.Arrays.forEach(files, file -> System.out.println("AFTER: " + file.getName()));
 		for(int i = 0; i < files.length; i++) {
 			int number = i + 1;
 			Episode episode;
@@ -169,78 +104,60 @@ public class Season {
 	
 	public void loadUI() {
 		Image image = null;
-		if(mainSection != null) {
-			String path = mainSection.get("image");
-			if(path != null) {
-				try {
-					image = ImageIO.read(new File(show.getDirectory(), path));
-				} catch(IOException e) {
-					throw new RuntimeException(e);
-				}
-			}
+		if(section != null) {
+			File file = new File(directory, section.get("image", "image.png"));
+			if(file.exists()) image = Images.read(file);
 		}
-		if(image == null){
-			try {
-				image = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("default.png")));
-			} catch(IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-		pagePanel.add(new JImage(Images.reduce(image, 450, 900)));
-		JPanel pageTitlePanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0))).bounds(470, 0, 1560 - 470, 125).backgroundColor(Color.DARK_GRAY).build();
-		JTextArea titleArea = new TextAreaBuilder().text(show.getFriendlyName() + " Season " + number).font(new Font("Segoe Print", Font.BOLD, 50))
-				.wrap(false).backgroundColor(Color.DARK_GRAY).foregroundColor(Color.WHITE).build();
-		if(mainSection != null) pagePanel.add(new TextAreaBuilder().text(mainSection.get("description", String.class)).font(new Font("Times New Roman", Font.PLAIN, 24))
-				.backgroundColor(Color.DARK_GRAY).foregroundColor(Color.WHITE).bounds(470, 145, 1560 - 470, 150).build());
-		JPanel episodesPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 15, 5));
-		episodesPanel.setBackground(Color.DARK_GRAY);
-		episodesPanel.setBounds(470, 305, 1560 - 470, 900 - 305);
-		JTextArea seasonText = new JTextArea();
-		TextAreaBuilder seasonTextBuilder = new TextAreaBuilder(seasonText);
-		seasonTextBuilder.backgroundColor(Color.DARK_GRAY).size(100, 30); // preferredSize might be needed
-		for(Episode episode : mainEpisodes) {
-			episodesPanel.add(seasonTextBuilder.text("Episode " + episode.getNumber()).foregroundColor(episode.getTracker().hasSeen() ? Color.LIGHT_GRAY : Color.WHITE)
-					.mouseListener((BasicMouseListener)event -> {
-						seasonText.setForeground(Color.LIGHT_GRAY);
+		if(image == null) image = show.getImage();
+		JPanel leftPanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15))).bounds(0, 0, 450, 1080 - 30).build();
+		JPanel rightPanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15))).bounds(450, 0, 1920 - 450, 1080 - 30).build();
+		leftPanel.add(new JImage(Images.resize(image, 450, 900)));
+		JPanel pageTitlePanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0))).preferredSize(1920 - 450, 125).build();
+		pageTitlePanel.add(new TextAreaBuilder(String.format("%s Season %s", show.getFriendlyName(), number)).font(new Font("Segoe Print", Font.BOLD, 50)).wrap(false).build());
+		rightPanel.add(pageTitlePanel);
+		if(section != null) rightPanel.add(new TextAreaBuilder(section.get("description", String.class)).font(new Font("Times New Roman", Font.PLAIN, 24))
+				.preferredSize(1920 - 450, 150).build());
+		JPanel episodesPanel = new ComponentBuilder<>(new JPanel(new FlowLayout(FlowLayout.LEADING, 15, 5))).preferredSize(1920 - 450, 600).build();
+		for(Episode episode : episodes) {
+			JTextArea episodeText = new JTextArea(String.format("Episode %s", episode.getNumber()));
+			episodesPanel.add(new TextAreaBuilder(episodeText).preferredSize(100, 30).fgColor(episode.getTracker().hasSeen() ? Color.LIGHT_GRAY : Color.WHITE)
+					.mouseListener((BasicMouseListener)e -> {
+						episodeText.setForeground(Color.LIGHT_GRAY);
 						episode.getTracker().clicked();
-						show.getMediaManager().getTMP().playEpisode(episode);
+						show.getMediaManager().getTMP().playEpisode(episode, e.isControlDown());
 					}).build());
 		}
-		pagePanel.add(episodesPanel);
-		pageTitlePanel.add(titleArea);
-		pagePanel.add(pageTitlePanel);
-		pagePanel.setVisible(false);
+		rightPanel.add(episodesPanel);
+		pagePanel.add(leftPanel);
+		pagePanel.add(rightPanel);
 		show.getMediaManager().getTMP().getMainPanel().add(pagePanel);
 	}
 	
-	public void setIntroLength(long introLength) {
+	public void setSpu(int spu) {
 		transformDataSection();
-		mainSection.put("intro-length", introLength);
-		mainSection.requestSave();
-	}
-	
-	public void setSubtitleTrackName(String trackName) {
-		transformDataSection();
-		mainSection.put("sub-track-name", trackName);
-		mainSection.requestSave();
+		section.put("spu-id", spu);
+		section.requestSave();
 	}
 	
 	public void setAudioTrackName(String trackName) {
 		transformDataSection();
-		mainSection.put("audio-track-name", trackName);
-		mainSection.requestSave();
+		section.put("audio-track-name", trackName);
+		section.requestSave();
 	}
 	
-	public long getIntroLength() {
-		return mainSection == null ? 0L : mainSection.getLong("intro-length", 0L);
+	public void setDefinedSkipDuration(int id, long duration) {
+		definedSkipDurations[id] = duration;
+		transformDataSection();
+		section.put("skip." + id, duration);
+		section.requestSave();
 	}
 	
-	public String getSubtitleTrackName() {
-		return mainSection == null ? null : mainSection.get("sub-track-name");
+	public int getSpuId() {
+		return section == null ? -2 : section.getInt("spu-id", -2);
 	}
 	
 	public String getAudioTrackName() {
-		return mainSection == null ? null : mainSection.get("audio-track-name");
+		return section == null ? null : section.get("audio-track-name");
 	}
 	
 	public SeasonTracker getTracker() {
@@ -248,7 +165,12 @@ public class Season {
 	}
 	
 	private void transformDataSection() {
-		if(mainSection == null) mainSection = show.getData().computeSectionIfAbsent(String.format("seasons.%s.main", number));
+		if(section == null) section = show.getData().computeSectionIfAbsent(String.format("seasons.%s", number));
+	}
+	
+	public void onPlay(MediaPlayer player) {
+		int spu = getSpuId();
+		if(spu != -2) player.setSpu(spu);
 	}
 	
 }

@@ -37,7 +37,7 @@ public class FadingImage extends JImage {
 		fadedImage = new JImage(copy);
 		mouseListener = (BasicMouseHoverListener)(event, hover) -> setFaded(hover);
 		if(!manual) addMouseListener(mouseListener);
-		getParent().add(new ComponentBuilder<>(fadedImage).location(getLocation()).visible(false).mouseListeners(getMouseListeners()).build());
+		getParent().add(new ComponentBuilder<>(fadedImage).loc(getLocation()).visible(false).mouseListeners(getMouseListeners()).build());
 	}
 	
 	public FadingImage setManual(boolean manual) {

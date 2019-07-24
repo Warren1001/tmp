@@ -12,7 +12,7 @@ import java.util.Set;
 
 public class DetailsTile extends JPanel {
 	
-	private static final int HEIGHT = 100;
+	private static final int HEIGHT = 75;
 	
 	private final Set<Component> hoverComponents = new HashSet<>();
 	
@@ -28,7 +28,7 @@ public class DetailsTile extends JPanel {
 		hoverListener = new BasicMouseListener() {
 			
 			@Override
-			public void mousePressed(MouseEvent e) {
+			public void mouseClicked(MouseEvent e) {
 				show.getMediaManager().getTMP().getUserManager().getSelectedUser().getShowTracker(show).getLastSeasonTracker().getLastEpisode().play();
 			}
 			
@@ -48,7 +48,7 @@ public class DetailsTile extends JPanel {
 		JPanel imagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
 		imagePanel.setBounds(currentWidth, 0, 150, HEIGHT);
 		imagePanel.setBackground(Color.DARK_GRAY);
-		JImage jImage = new JImage(Images.reduce(image, 150, HEIGHT));
+		JImage jImage = new JImage(Images.resize(image, 150, HEIGHT));
 		jImage.addMouseListener(hoverListener);
 		hoverComponents.add(jImage);
 		imagePanel.add(jImage);
@@ -60,7 +60,7 @@ public class DetailsTile extends JPanel {
 		String titleString = show.getFriendlyName();
 		String englishName = show.getData().get("english", String.class);
 		title = new TextAreaBuilder().wrap(false).font(new Font("Segoe Print", Font.BOLD, 16))
-				.backgroundColor(Color.DARK_GRAY).foregroundColor(Color.WHITE).mouseListener(hoverListener).build();
+				.bgColor(Color.DARK_GRAY).fgColor(Color.WHITE).mouseListener(hoverListener).build();
 		hoverComponents.add(title);
 		if(englishName != null) {
 			boolean onlyEnglish = show.getMediaManager().getTMP().getUserManager().getSelectedUser().getData().getBoolean("only-english", false);
@@ -76,8 +76,8 @@ public class DetailsTile extends JPanel {
 		JPanel textPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
 		textPanel.setBounds(currentWidth, 0, 450, HEIGHT);
 		textPanel.setBackground(Color.DARK_GRAY);
-		JTextArea text = new TextAreaBuilder().text(show.getDescription()).backgroundColor(Color.DARK_GRAY)
-				.foregroundColor(Color.WHITE).size(900, HEIGHT).build();
+		JTextArea text = new TextAreaBuilder().text(show.getDescription()).bgColor(Color.DARK_GRAY)
+				.fgColor(Color.WHITE).size(900, HEIGHT).build();
 		text.addMouseListener(hoverListener);
 		hoverComponents.add(text);
 		textPanel.add(text);
@@ -86,8 +86,8 @@ public class DetailsTile extends JPanel {
 		JPanel browsePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
 		browsePanel.setBounds(currentWidth, 0, 240, HEIGHT);
 		browsePanel.setBackground(Color.DARK_GRAY);
-		JTextArea browse = new TextAreaBuilder().wrap(false).text("Browse").font(new Font("Arial", Font.BOLD, 15)).backgroundColor(Color.DARK_GRAY)
-				.foregroundColor(Color.BLUE).build();
+		JTextArea browse = new TextAreaBuilder().wrap(false).text("Browse").font(new Font("Arial", Font.BOLD, 15)).bgColor(Color.DARK_GRAY)
+				.fgColor(Color.BLUE).build();
 		browse.addMouseListener((BasicMouseListener)e -> show.getMediaManager().getTMP().setCurrentlyVisibleMainPanel(show.getPagePanel()));
 		hoverComponents.add(browse);
 		browsePanel.add(browse);

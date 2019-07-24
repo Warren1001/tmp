@@ -13,7 +13,7 @@ public interface BasicMouseListener extends MouseListener {
 	default void mouseExited(MouseEvent e) {}
 	
 	@Override
-	default void mouseClicked(MouseEvent e) {}
+	default void mousePressed(MouseEvent e) {}
 	
 	@Override
 	default void mouseReleased(MouseEvent e) {}

@@ -46,4 +46,13 @@ public class ShowTracker {
 		setLastWatched(System.currentTimeMillis());
 	}
 	
+	public double getRating() {
+		return section.getDouble("rating", 0.0);
+	}
+	
+	public void setRating(double rating) {
+		section.put("rating", rating);
+		section.requestSave();
+	}
+	
 }

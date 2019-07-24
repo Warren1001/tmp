@@ -1,14 +1,13 @@
 package com.kabryxis.tmp.media;
 
+import com.kabryxis.kabutils.data.Maths;
 import com.kabryxis.kabutils.data.file.yaml.ConfigSection;
 import com.kabryxis.tmp.user.EpisodeTracker;
 import uk.co.caprica.vlcj.player.MediaPlayer;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class Episode {
@@ -22,9 +21,8 @@ public class Episode {
 	private final String dataPath;
 	private final File extraSubtitles;
 	
-	private Set<long[]> timestampSkipSegments;
-	private int[] chapterSkipSegments;
 	private ConfigSection section;
+	private Set<long[]> skipSegments;
 	
 	public Episode(Season season, int number, File episodeFile, ConfigSection section) {
 		this.season = season;
@@ -33,58 +31,27 @@ public class Episode {
 		dataPath = null;
 		this.episodeFile = episodeFile;
 		description = section.get("description");
-		List<String> list = section.getList("skip", String.class);
-		if(list == null || list.isEmpty()) {
-			timestampSkipSegments = season.getTimestampSkipSegments();
-			chapterSkipSegments = season.getChapterSkipSegments();
-		}
-		else {
-			Set<long[]> timestampsList = new HashSet<>();
-			List<Integer> chapterList = new ArrayList<>();
-			for(String string : list) {
-				String[] args0 = string.split(":", 2);
-				String key = args0[0];
-				String rest = args0[1];
-				if(key.equalsIgnoreCase("c")) chapterList.add(Integer.parseInt(rest));
-				else if(key.equalsIgnoreCase("t")) {
-					if(rest.contains(",")) {
-						String[] args1 = rest.split(",");
-						long[] timestampArray = new long[2];
-						for(String arg : args1) {
-							String[] args2 = arg.split(":");
-							String tKey = args2[0];
-							long value = Long.parseLong(args2[1]);
-							if(tKey.equalsIgnoreCase("s")) timestampArray[0] = value;
-							else if(tKey.equalsIgnoreCase("e")) timestampArray[1] = value;
-						}
-						timestampsList.add(timestampArray);
-					}
-					else {
-						long[] timestampArray = new long[2];
-						String[] args2 = rest.split(":");
-						String tKey = args2[0];
-						long value = Long.parseLong(args2[1]);
-						if(tKey.equalsIgnoreCase("s")) timestampArray[0] = value;
-						else if(tKey.equalsIgnoreCase("e")) timestampArray[1] = value;
-						timestampsList.add(timestampArray);
+		ConfigSection skipSection = section.get("skip");
+		if(skipSection != null) {
+			skipSegments = new HashSet<>();
+			skipSection.forEach((skipKey, skipValue) -> {
+				if(skipKey.equalsIgnoreCase("custom")) {
+					((ConfigSection)skipValue).forEach((customSkipKey, customSkipValue) -> {
+						long[] skipSegment = {Long.parseLong(customSkipKey), (Long)customSkipValue};
+						skipSegments.add(skipSegment);
+					});
+				}
+				else {
+					long duration = season.getSkipDuration(Integer.parseInt(skipKey));
+					if(duration != 0L) {
+						long offset = Maths.toLong(skipValue);
+						long[] skipSegment = {offset, offset + duration};
+						skipSegments.add(skipSegment);
 					}
 				}
-			}
-			timestampSkipSegments = timestampsList;
-			chapterSkipSegments = new int[chapterList.size()];
-			for(int i = 0; i < chapterList.size(); i++) {
-				chapterSkipSegments[i] = chapterList.get(i);
-			}
+			});
 		}
-		long introLength = season.getIntroLength();
-		if(introLength > 0L) {
-			long introStart = section.getLong("intro-start");
-			long[] timestamp = new long[2];
-			timestamp[0] = introStart;
-			timestamp[1] = introStart + introLength;
-			if(timestampSkipSegments == null) timestampSkipSegments = new HashSet<>();
-			timestampSkipSegments.add(timestamp);
-		}
+		else skipSegments = null;
 		String loadExtraSubs = section.get("load-extra-subs");
 		if(loadExtraSubs != null) extraSubtitles = new File(season.getDirectory(), loadExtraSubs);
 		else extraSubtitles = null;
@@ -107,8 +74,7 @@ public class Episode {
 		dataPath = null;
 		this.episodeFile = episodeFile;
 		description = null;
-		timestampSkipSegments = season.getTimestampSkipSegments();
-		chapterSkipSegments = season.getChapterSkipSegments();
+		skipSegments = null;
 		extraSubtitles = null;
 	}
 	
@@ -128,67 +94,76 @@ public class Episode {
 		return description;
 	}
 	
-	public Set<long[]> getTimestampSkipSegments() {
-		return timestampSkipSegments;
+	public void addCustomSkipSegment(long start, long end) {
+		if(skipSegments == null) skipSegments = new HashSet<>();
+		long[] segment = {start, end};
+		skipSegments.add(segment);
+		transformDataSection();
+		section.put("skip.custom." + start, end);
+		section.requestSave();
 	}
 	
-	public int[] getChapterSkipSegments() {
-		return chapterSkipSegments;
+	public void addDefinedSkipSegment(int id, long start) {
+		if(skipSegments == null) skipSegments = new HashSet<>();
+		long[] segment = {start, start + season.getSkipDuration(id)};
+		skipSegments.add(segment);
+		transformDataSection();
+		section.put("skip." + id, start);
+		section.requestSave();
+		System.out.println(String.format("episode %sx%s of %s added skip segment %s", season.getNumber(), number, season.getShow().getFriendlyName(), id));
+	}
+	
+	public boolean checkForSkip(MediaPlayer mediaPlayer, long time) {
+		if(skipSegments != null) {
+			Optional<long[]> optionalSegment = skipSegments.stream().filter(segment -> time >= segment[0] && time < segment[1]).findFirst();
+			if(optionalSegment.isPresent()) {
+				long end = optionalSegment.get()[1];
+				if(end + 3000 >= mediaPlayer.getLength()) season.getShow().getMediaManager().getTMP().playNextEpisode();
+				else if(!checkForSkip(mediaPlayer, end + 3000)) mediaPlayer.setTime(end);
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	public Episode getNextEpisode() {
 		return season.getEpisode(number + 1);
 	}
 	
-	protected File findEpisodeFile(String path) {
-		File folder = season.getShow().getDirectory();
-		File file = null;
-		if(path != null) file = new File(folder, path);
-		if(file == null || !file.exists()) {
-			for(String ext : VALID_EXTENSIONS) {
-				file = new File(folder, season.getNumber() + "x" + number + ext);
-				if(file.exists()) break;
-			}
-		}
-		if(!file.exists()) throw new RuntimeException(new FileNotFoundException("could not find season " + season.getNumber() + " episode " + number + " file for show " + season.getShow().getName()));
-		return file;
-	}
-	
-	public void setIntroStartTime(long introStartTime) {
-		transformDataSection();
-		section.put("intro-start", introStartTime);
-		section.requestSave();
-	}
-	
 	public void play() {
+		System.out.println(String.format("episode %sx%s of %s has %s skip segments", season.getNumber(), number, season.getShow().getFriendlyName(), skipSegments == null ? 0 : skipSegments.size()));
 		season.getShow().getMediaManager().getTMP().playEpisode(this);
 	}
 	
 	private void transformDataSection() {
 		if(section == null) {
 			section = new ConfigSection();
-			String path = season.getShow().getData().get(String.format("seasons.%s.main.%s", season.getNumber(), number));
+			String path = season.getShow().getData().get(String.format("seasons.%s.%s", season.getNumber(), number));
 			if(path != null) section.put("path", path);
-			season.getShow().getData().put(String.format("seasons.%s.main.%s", season.getNumber(), number), section);
+			season.getShow().getData().put(String.format("seasons.%s.%s", season.getNumber(), number), section);
 		}
 	}
 	
 	public void onPlay(MediaPlayer player) {
+		System.out.println("CALLED");
+		season.onPlay(player);
 		if(extraSubtitles != null && extraSubtitles.exists()) player.setSubTitleFile(extraSubtitles);
+		int spu = section.getInt("spu", -2);
+		if(spu != -2) player.setSpu(spu);
 	}
 	
 	public EpisodeTracker getTracker() {
 		return season.getTracker().getEpisodeTracker(number);
 	}
 	
-	public void setSubtitleTrackName(String trackName) {
+	public void setSpu(int spu) {
 		transformDataSection();
-		section.put("sub-track-name", trackName);
+		section.put("spu-id", spu);
 		section.requestSave();
 	}
 	
-	public String getSubtitleTrackName() {
-		return section == null ? null : section.get("sub-track-name");
+	public int getSpu() {
+		return section == null ? -2 : section.getInt("sub-track-name", -2);
 	}
 	
 }

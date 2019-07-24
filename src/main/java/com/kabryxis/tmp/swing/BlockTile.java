@@ -1,71 +1,39 @@
 package com.kabryxis.tmp.swing;
 
 import com.kabryxis.kabutils.Images;
+import com.kabryxis.tmp.TMP;
 import com.kabryxis.tmp.media.Show;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.HashSet;
 import java.util.Set;
 
 public class BlockTile extends JPanel {
 	
+	private static final int WIDTH = 380;
+	
 	private final Set<Component> hoverComponents = new HashSet<>();
 	
-	private final MouseListener hoverListener;
-	private final JTextArea title;
+	private final MouseListener clickListener, hoverListener;
 	
 	public BlockTile(Show show, Image image) {
-		super(null);
+		super(new FlowLayout(FlowLayout.CENTER, WIDTH, 8));
 		hoverComponents.add(this);
-		setPreferredSize(new Dimension(450, 667));
-		setBorder(null);
-		setBackground(Color.DARK_GRAY);
-		hoverListener = new MouseListener() {
-			
-			@Override
-			public void mouseClicked(MouseEvent e) {
-				show.getMediaManager().getTMP().getUserManager().getSelectedUser().getShowTracker(show).getLastSeasonTracker().getLastEpisode().play();
-			}
-			
-			@Override
-			public void mousePressed(MouseEvent e) {}
-			
-			@Override
-			public void mouseReleased(MouseEvent e) {}
-			
-			@Override
-			public void mouseEntered(MouseEvent e) {
-				hoverComponents.forEach(component -> component.setBackground(Color.GRAY));
-			}
-			
-			@Override
-			public void mouseExited(MouseEvent e) {
-				hoverComponents.forEach(component -> component.setBackground(Color.DARK_GRAY));
-			}
-			
+		setPreferredSize(new Dimension(WIDTH, 500));
+		setBackground(TMP.DEFAULT_BG_COLOR);
+		clickListener = (BasicMouseListener)e -> show.getMediaManager().getTMP().getUserManager().getSelectedUser().getShowTracker(show).getLastSeasonTracker().getLastEpisode().play();
+		hoverListener = (BasicMouseHoverListener)(e, hover) -> {
+			Color color = hover ? TMP.DEFAULT_BG_COLOR.brighter() : TMP.DEFAULT_BG_COLOR;
+			hoverComponents.forEach(component -> component.setBackground(color));
 		};
+		addMouseListener(clickListener);
 		addMouseListener(hoverListener);
-		int currentHeight = 0;
-		JPanel imagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		imagePanel.setBounds(0, currentHeight, 450, 300);
-		imagePanel.setBackground(Color.DARK_GRAY);
-		JImage jImage = new JImage(Images.reduce(image, 450, 300));
-		jImage.addMouseListener(hoverListener);
-		hoverComponents.add(jImage);
-		imagePanel.add(jImage);
-		add(imagePanel);
-		currentHeight = jImage.getHeight();
-		JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		titlePanel.setBounds(0, currentHeight, 450, 50);
-		titlePanel.setBackground(Color.DARK_GRAY);
+		addWithClick(new ComponentBuilder<>(new JImage(Images.resize(image, WIDTH, 300))).preferredSize(WIDTH, 300).build());
 		String titleString = show.getFriendlyName();
 		String englishName = show.getData().get("english", String.class);
-		title = new TextAreaBuilder().wrap(false).font(new Font("Segoe Print", Font.BOLD, 21))
-				.backgroundColor(Color.DARK_GRAY).foregroundColor(Color.WHITE).mouseListener(hoverListener).build();
-		hoverComponents.add(title);
+		JTextArea title = new TextAreaBuilder().wrap(false).font(new Font("Segoe Print", Font.BOLD, 21)).fgColor(Color.WHITE).build();
 		if(englishName != null) {
 			boolean onlyEnglish = show.getMediaManager().getTMP().getUserManager().getSelectedUser().getData().getBoolean("only-english", false);
 			if(onlyEnglish) titleString = englishName;
@@ -74,29 +42,18 @@ public class BlockTile extends JPanel {
 					title.setText(user.getData().getBoolean("only-english", false) ? englishName : show.getFriendlyName() + " - (" + englishName + ")"));
 		}
 		title.setText(titleString);
-		titlePanel.add(title);
-		add(titlePanel);
-		currentHeight += titlePanel.getHeight();
-		JPanel textPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		textPanel.setBounds(0, currentHeight, 450, 100);
-		textPanel.setBackground(Color.DARK_GRAY);
-		JTextArea text = new TextAreaBuilder().text(show.getDescription()).backgroundColor(Color.DARK_GRAY)
-				.foregroundColor(Color.WHITE).size(444, 100).build();
-		text.addMouseListener(hoverListener);
-		hoverComponents.add(text);
-		textPanel.add(text);
-		add(textPanel);
-		currentHeight += textPanel.getHeight();
-		JPanel browsePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		browsePanel.setBounds(0, currentHeight, 450, 50);
-		browsePanel.setBackground(Color.DARK_GRAY);
-		JTextArea browse = new TextAreaBuilder().wrap(false).text("Browse").font(new Font("Arial", Font.BOLD, 15)).backgroundColor(Color.DARK_GRAY)
-				.foregroundColor(Color.BLUE).build();
+		addWithClick(title);
+		java.util.List<String> genres = show.getGenres();
+		genres.sort(String.CASE_INSENSITIVE_ORDER);
+		addWithClick(new TextAreaBuilder(String.join(", ", genres)).wrap(false).fgColor(Color.WHITE).build());
+		double rating = show.getAverageRating();
+		JImage starsImage = new JImage(TMP.getRatingStars(rating));
+		starsImage.setToolTipText(String.valueOf(rating));
+		addWithClick(starsImage);
+		JTextArea browse = new TextAreaBuilder("Browse").wrap(false).font(new Font("Arial", Font.BOLD, 15)).fgColor(Color.BLUE).build();
 		browse.addMouseListener((BasicMouseListener)e -> show.getMediaManager().getTMP().setCurrentlyVisibleMainPanel(show.getPagePanel()));
-		hoverComponents.add(browse);
-		browsePanel.add(browse);
-		add(browsePanel);
-		currentHeight += browsePanel.getHeight();
+		browse.setToolTipText("Warning! Potential spoilers if you click this.");
+		add(browse);
 	}
 	
 	@Override
@@ -104,6 +61,11 @@ public class BlockTile extends JPanel {
 		hoverComponents.add(component);
 		component.addMouseListener(hoverListener);
 		return super.add(component);
+	}
+	
+	public void addWithClick(Component component) {
+		component.addMouseListener(clickListener);
+		add(component);
 	}
 	
 }
